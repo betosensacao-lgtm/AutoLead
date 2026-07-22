@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 import { NextResponse } from "next/server";
 import { HumanMessage } from "@langchain/core/messages";
 import { runLeadGraph } from "@/lib/langgraph";
