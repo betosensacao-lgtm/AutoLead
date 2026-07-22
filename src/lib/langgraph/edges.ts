@@ -23,7 +23,7 @@ export function routeAfterRouter(
 export function routeAfterCapture(
   state: typeof LeadState.State
 ): string {
-  const { email, name } = state.leadData;
+  const { email, name } = state.leadData || {};
 
   if (email || name) {
     return "qualification";
