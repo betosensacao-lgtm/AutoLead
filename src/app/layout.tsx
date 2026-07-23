@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import "@/styles/globals.css";
+import { RealtimeDashboard } from "@/components/realtime-dashboard";
 
 export const metadata: Metadata = {
   title: "AutoLead - Intelligent Sales Automation",
@@ -18,6 +19,7 @@ export default function RootLayout({
       <body>
         {children}
         <Toaster richColors position="top-center" />
+        <RealtimeDashboard />
       </body>
     </html>
   );

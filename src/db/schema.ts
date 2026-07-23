@@ -1,6 +1,4 @@
 import {
-  pgTable,
-  pgEnum,
   uuid,
   varchar,
   text,
@@ -8,11 +6,15 @@ import {
   boolean,
   timestamp,
   jsonb,
+  pgSchema,
 } from "drizzle-orm/pg-core";
+
+export const autoleadSchema = pgSchema("autolead");
+export const pgTable = autoleadSchema.table;
 
 // ─── Enums ───────────────────────────────────────────────
 
-export const leadStage = pgEnum("lead_stage", [
+export const leadStage = autoleadSchema.enum("lead_stage", [
   "NEW",
   "CAPTURED",
   "QUALIFYING",
@@ -23,19 +25,19 @@ export const leadStage = pgEnum("lead_stage", [
   "LOST",
 ]);
 
-export const leadScoreCategory = pgEnum("lead_score_category", [
+export const leadScoreCategory = autoleadSchema.enum("lead_score_category", [
   "COLD",
   "WARM",
   "HOT",
 ]);
 
-export const leadChannel = pgEnum("lead_channel", [
+export const leadChannel = autoleadSchema.enum("lead_channel", [
   "web",
   "whatsapp",
   "email",
 ]);
 
-export const interactionType = pgEnum("interaction_type", [
+export const interactionType = autoleadSchema.enum("interaction_type", [
   "message",
   "qualification",
   "followup",

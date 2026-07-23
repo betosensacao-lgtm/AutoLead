@@ -13,7 +13,7 @@ import {
   routeAfterQualification,
   routeAfterDoubt,
 } from "./edges";
-import { getCheckpointer } from "./persistence";
+import { getCheckpointer, ensureCheckpointerSetup } from "./persistence";
 
 const workflow = new StateGraph(LeadState)
   .addNode("router", routerNode)
@@ -46,6 +46,7 @@ export async function runLeadGraph(
     },
   };
 
+  await ensureCheckpointerSetup();
   const result = await leadGraph.invoke(
     {
       messages: input.messages,
