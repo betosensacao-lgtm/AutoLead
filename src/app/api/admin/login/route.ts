@@ -1,32 +1,21 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 import { getUserByEmail, verifyPassword, createSessionToken, updateLastLogin } from "@/lib/auth";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
 
     if (!email || !password) {
-      return NextResponse.json(
-        { error: "Email and password are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
     }
 
     const user = await getUserByEmail(email);
-
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
-      return NextResponse.json(
-        { error: "Invalid email or password" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
     if (!user.active) {
-      return NextResponse.json(
-        { error: "User is deactivated" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "User is deactivated" }, { status: 403 });
     }
 
     const token = await createSessionToken({
@@ -38,8 +27,11 @@ export async function POST(request: Request) {
 
     await updateLastLogin(user.id);
 
-    const cookieStore = await cookies();
-    cookieStore.set("admin_session", token, {
+    const response = NextResponse.json({
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    });
+
+    response.cookies.set("admin_session", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -47,14 +39,9 @@ export async function POST(request: Request) {
       maxAge: 86400,
     });
 
-    return NextResponse.json({
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
-    });
+    return response;
   } catch (error) {
     console.error("[LOGIN ERROR]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
