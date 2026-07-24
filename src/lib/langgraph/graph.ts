@@ -1,58 +1,31 @@
 import { StateGraph } from "@langchain/langgraph";
-import { LeadState } from "./state";
-import {
-  routerNode,
-  captureNode,
-  qualificationNode,
-  doubtResolutionNode,
-  distributionNode,
-} from "./nodes";
-import {
-  routeAfterRouter,
-  routeAfterCapture,
-  routeAfterQualification,
-  routeAfterDoubt,
-} from "./edges";
-import { getCheckpointer, ensureCheckpointerSetup } from "./persistence";
+import { FlowState } from "./state";
+import { workflowAgentNode } from "./nodes";
 
-const workflow = new StateGraph(LeadState)
-  .addNode("router", routerNode)
-  .addNode("capture", captureNode)
-  .addNode("qualification", qualificationNode)
-  .addNode("doubt_resolution", doubtResolutionNode)
-  .addNode("distribution", distributionNode)
-  .addEdge("__start__", "router")
-  .addConditionalEdges("router", routeAfterRouter)
-  .addConditionalEdges("capture", routeAfterCapture)
-  .addConditionalEdges("qualification", routeAfterQualification)
-  .addConditionalEdges("doubt_resolution", routeAfterDoubt)
-  .addEdge("distribution", "__end__");
+const workflow = new StateGraph(FlowState)
+  .addNode("agent", workflowAgentNode as any)
+  .addEdge("__start__", "agent")
+  .addEdge("agent", "__end__");
 
-export const leadGraph = workflow.compile({ checkpointer: getCheckpointer() });
+export const flowGraph = workflow.compile();
 
-export async function runLeadGraph(
+export async function runFlowGraph(
   input: {
     messages: any[];
-    organizationId: string;
-    platform?: "web" | "whatsapp" | "email";
-    leadId?: string;
+    workflowId?: string;
   },
   threadId?: string
 ) {
   const config = {
     configurable: {
       thread_id: threadId ?? crypto.randomUUID(),
-      organizationId: input.organizationId,
     },
   };
 
-  await ensureCheckpointerSetup();
-  const result = await leadGraph.invoke(
+  const result = await flowGraph.invoke(
     {
       messages: input.messages,
-      organizationId: input.organizationId,
-      platform: input.platform ?? "web",
-      leadId: input.leadId ?? "",
+      workflowId: input.workflowId ?? "",
     },
     config
   );

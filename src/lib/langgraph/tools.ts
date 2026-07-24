@@ -1,134 +1,122 @@
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
+import { n8nClient } from "@/lib/n8n/client";
 import { db } from "@/db";
-import { leads, leadMessages, leadInteractions } from "@/db/schema";
+import { workflows, workflowExecutions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-const saveLeadSchema = z.object({
-  name: z.string().optional(),
-  email: z.string().optional(),
-  phone: z.string().optional(),
-  company: z.string().optional(),
-  role: z.string().optional(),
-  stage: z.string(),
-  score: z.number().optional(),
-  notes: z.string().optional(),
-});
-
-const getLeadByEmailSchema = z.object({
-  email: z.string(),
-});
-
-const calculateScoreSchema = z.object({
-  budget: z.boolean(),
-  authority: z.boolean(),
-  need: z.boolean(),
-  timeline: z.number().min(0).max(4),
-});
-
-const sendFollowUpEmailSchema = z.object({
-  to: z.string(),
-  subject: z.string(),
-  content: z.string(),
-});
-
-const notifySalesSchema = z.object({
-  leadId: z.string(),
-  reason: z.string(),
-  priority: z.enum(["low", "medium", "high"]),
-});
-
-const scheduleNurturingSchema = z.object({
-  leadId: z.string(),
-  delayHours: z.number(),
-  message: z.string(),
-});
-
-const queryKnowledgeBaseSchema = z.object({
-  query: z.string(),
-});
-
-export const saveLeadTool = new DynamicStructuredTool({
-  name: "save_lead",
-  description: "Salva ou atualiza os dados de um lead no banco de dados",
-  schema: saveLeadSchema,
-  func: async (args) => {
+export const createN8nWorkflowTool = new DynamicStructuredTool({
+  name: "create_n8n_workflow",
+  description: "Cria um novo workflow de automação n8n via IA com os nós e conexões especificados.",
+  schema: z.object({
+    name: z.string().describe("Nome do workflow"),
+    description: z.string().describe("Descrição do que o workflow faz"),
+    triggerType: z.enum(["WEBHOOK", "SCHEDULE", "EVENT", "MANUAL", "AI_AGENT"]).default("WEBHOOK"),
+    nodes: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      type: z.string(),
+    })).describe("Lista de nós n8n"),
+  }),
+  func: async ({ name, description, triggerType, nodes }) => {
     try {
-      return JSON.stringify({ success: true, data: args });
+      const n8nWf = await n8nClient.createWorkflow(name, nodes, {});
+
+      const [dbWf] = await db.insert(workflows).values({
+        name,
+        description,
+        n8nWorkflowId: n8nWf.id,
+        triggerType,
+        nodesCount: nodes.length,
+        status: "ACTIVE",
+        tags: ["AI-Generated", triggerType],
+      } as any).returning();
+
+      return JSON.stringify({
+        success: true,
+        workflowId: dbWf.id,
+        n8nWorkflowId: n8nWf.id,
+        name: dbWf.name,
+        nodesCount: nodes.length,
+      });
     } catch (error) {
       return JSON.stringify({ success: false, error: String(error) });
     }
   },
 });
 
-export const getLeadByEmailTool = new DynamicStructuredTool({
-  name: "get_lead_by_email",
-  description: "Busca um lead existente pelo email",
-  schema: getLeadByEmailSchema,
-  func: async ({ email }) => {
+export const executeN8nWorkflowTool = new DynamicStructuredTool({
+  name: "execute_n8n_workflow",
+  description: "Dispara a execução de um workflow n8n ativo.",
+  schema: z.object({
+    workflowId: z.string().describe("ID do workflow no sistema"),
+    inputData: z.record(z.unknown()).optional().describe("Dados de entrada para o disparo"),
+  }),
+  func: async ({ workflowId, inputData }) => {
     try {
-      const result = await db
-        .select()
-        .from(leads)
-        .where(eq(leads.email, email));
-      if (result.length === 0) {
-        return JSON.stringify({ found: false });
+      const [wf] = await db.select().from(workflows).where(eq(workflows.id, workflowId)).limit(1);
+      const n8nWfId = wf?.n8nWorkflowId || workflowId;
+
+      const startTime = Date.now();
+      const execution = await n8nClient.executeWorkflow(n8nWfId, inputData);
+      const durationMs = Date.now() - startTime;
+
+      if (wf) {
+        await db.insert(workflowExecutions).values({
+          workflowId: wf.id,
+          status: execution.status === "error" ? "FAILED" : "SUCCESS",
+          durationMs,
+          inputData: inputData || null,
+          outputData: { executionId: execution.id, status: execution.status },
+        } as any);
+
+        await db.update(workflows).set({ lastRunAt: new Date() } as any).where(eq(workflows.id, wf.id));
       }
-      return JSON.stringify({ found: true, lead: result[0] });
+
+      return JSON.stringify({
+        success: true,
+        executionId: execution.id,
+        status: execution.status,
+        durationMs,
+      });
     } catch (error) {
-      return JSON.stringify({ found: false, error: String(error) });
+      return JSON.stringify({ success: false, error: String(error) });
     }
   },
 });
 
-export const calculateScoreTool = new DynamicStructuredTool({
-  name: "calculate_score",
-  description: "Calcula o score BANT do lead baseado nas respostas",
-  schema: calculateScoreSchema,
-  func: async (args) => {
-    let score = 0;
-    if (args.budget) score += 30;
-    if (args.authority) score += 25;
-    if (args.need) score += 25;
-    score += args.timeline * 5;
-
-    const category = score >= 61 ? "HOT" : score >= 31 ? "WARM" : "COLD";
-
-    return JSON.stringify({ score, category });
-  },
-});
-
-export const notifySalesTool = new DynamicStructuredTool({
-  name: "notify_sales_team",
-  description: "Notifica o time comercial sobre um lead qualificado",
-  schema: notifySalesSchema,
-  func: async (args) => {
-    const message = `[${args.priority.toUpperCase()}] Lead ${args.leadId}: ${args.reason}`;
-    console.log(`[NOTIFICATION] ${message}`);
-    return JSON.stringify({ notified: true, message });
-  },
-});
-
-export const queryKnowledgeBaseTool = new DynamicStructuredTool({
-  name: "query_knowledge_base",
-  description: "Queries information about products and services",
-  schema: queryKnowledgeBaseSchema,
-  func: async ({ query }) => {
-    return JSON.stringify({
-      answer: `Information about: ${query}. (Knowledge base to be implemented)`,
-    });
+export const listN8nWorkflowsTool = new DynamicStructuredTool({
+  name: "list_n8n_workflows",
+  description: "Lista os workflows ativos e seu status de execução.",
+  schema: z.object({}),
+  func: async () => {
+    try {
+      const activeWorkflows = await db.select().from(workflows).orderBy(workflows.createdAt);
+      return JSON.stringify({
+        success: true,
+        count: activeWorkflows.length,
+        workflows: activeWorkflows.map((w) => ({
+          id: w.id,
+          name: w.name,
+          triggerType: w.triggerType,
+          status: w.status,
+          nodesCount: w.nodesCount,
+        })),
+      });
+    } catch (error) {
+      return JSON.stringify({ success: false, error: String(error) });
+    }
   },
 });
 
 export const allTools = [
-  saveLeadTool,
-  getLeadByEmailTool,
-  calculateScoreTool,
-  notifySalesTool,
-  queryKnowledgeBaseTool,
+  createN8nWorkflowTool,
+  executeN8nWorkflowTool,
+  listN8nWorkflowsTool,
 ];
 
-export const leadTools = [saveLeadTool, getLeadByEmailTool];
-export const qualificationTools = [calculateScoreTool, saveLeadTool];
-export const distributionTools = [notifySalesTool, saveLeadTool];
-export const knowledgeTools = [queryKnowledgeBaseTool];
+export const workflowTools = [
+  createN8nWorkflowTool,
+  executeN8nWorkflowTool,
+  listN8nWorkflowsTool,
+];

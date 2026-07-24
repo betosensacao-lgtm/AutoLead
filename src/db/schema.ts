@@ -9,184 +9,84 @@ import {
   pgSchema,
 } from "drizzle-orm/pg-core";
 
-export const autoleadSchema = pgSchema("autolead");
-export const pgTable = autoleadSchema.table;
+export const flowaiSchema = pgSchema("flowai");
+export const pgTable = flowaiSchema.table;
 
 // ─── Enums ───────────────────────────────────────────────
 
-export const leadStage = autoleadSchema.enum("lead_stage", [
-  "NEW",
-  "CAPTURED",
-  "QUALIFYING",
-  "QUALIFIED",
-  "NURTURING",
-  "HOT",
-  "CONVERTED",
-  "LOST",
+export const workflowStatus = flowaiSchema.enum("workflow_status", [
+  "DRAFT",
+  "ACTIVE",
+  "PAUSED",
+  "ARCHIVED",
 ]);
 
-export const leadScoreCategory = autoleadSchema.enum("lead_score_category", [
-  "COLD",
-  "WARM",
-  "HOT",
+export const executionStatus = flowaiSchema.enum("execution_status", [
+  "PENDING",
+  "RUNNING",
+  "SUCCESS",
+  "FAILED",
+  "CANCELLED",
 ]);
 
-export const leadChannel = autoleadSchema.enum("lead_channel", [
-  "web",
-  "whatsapp",
-  "email",
+export const triggerType = flowaiSchema.enum("trigger_type", [
+  "WEBHOOK",
+  "SCHEDULE",
+  "EVENT",
+  "MANUAL",
+  "AI_AGENT",
 ]);
 
-export const interactionType = autoleadSchema.enum("interaction_type", [
-  "message",
-  "qualification",
-  "followup",
-  "notification",
-  "conversion",
-]);
+// ─── Tables ─────────────────────────────────────────────
 
-// ─── Tabelas ─────────────────────────────────────────────
+export const workflows = pgTable("workflows", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  n8nWorkflowId: varchar("n8n_workflow_id", { length: 100 }),
+  triggerType: triggerType("trigger_type").default("WEBHOOK").notNull(),
+  status: workflowStatus("status").default("ACTIVE").notNull(),
+  nodesCount: integer("nodes_count").default(1).notNull(),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  definitionJson: jsonb("definition_json"),
+  lastRunAt: timestamp("last_run_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
-export const organizations = pgTable("organizations", {
+export const workflowExecutions = pgTable("workflow_executions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  workflowId: uuid("workflow_id")
+    .references(() => workflows.id, { onDelete: "cascade" })
+    .notNull(),
+  status: executionStatus("status").default("RUNNING").notNull(),
+  durationMs: integer("duration_ms"),
+  inputData: jsonb("input_data"),
+  outputData: jsonb("output_data"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const workflowTemplates = pgTable("workflow_templates", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   slug: varchar("slug", { length: 100 }).unique().notNull(),
-  whatsappPhoneNumberId: varchar("whatsapp_phone_number_id", { length: 50 }),
-  whatsappAccessToken: text("whatsapp_access_token"),
-  emailFrom: varchar("email_from", { length: 255 }),
-  salesEmail: varchar("sales_email", { length: 255 }),
-  crmWebhookUrl: varchar("crm_webhook_url", { length: 500 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const leads = pgTable("leads", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  organizationId: uuid("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  name: varchar("name", { length: 255 }),
-  email: varchar("email", { length: 255 }),
-  phone: varchar("phone", { length: 30 }),
-  company: varchar("company", { length: 255 }),
-  role: varchar("role", { length: 255 }),
-  stage: leadStage("stage").default("NEW").notNull(),
-  score: integer("score").default(0).notNull(),
-  scoreCategory: leadScoreCategory("score_category")
-    .default("COLD")
-    .notNull(),
-  channel: leadChannel("channel").default("web").notNull(),
-  notes: text("notes"),
-  metadata: jsonb("metadata"),
-  convertedAt: timestamp("converted_at"),
-  lastInteractionAt: timestamp("last_interaction_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const leadMessages = pgTable("lead_messages", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  leadId: uuid("lead_id")
-    .references(() => leads.id)
-    .notNull(),
-  role: varchar("role", { length: 20 }).notNull(),
-  content: text("content").notNull(),
-  channel: leadChannel("channel"),
+  category: varchar("category", { length: 100 }).notNull(),
+  description: text("description").notNull(),
+  iconName: varchar("icon_name", { length: 50 }).default("Workflow").notNull(),
+  isFeatured: boolean("is_featured").default(false).notNull(),
+  n8nJson: jsonb("n8n_json").notNull(),
+  tags: jsonb("tags").$type<string[]>().default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const leadInteractions = pgTable("lead_interactions", {
+export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
-  leadId: uuid("lead_id")
-    .references(() => leads.id)
-    .notNull(),
-  type: interactionType("type").notNull(),
-  summary: text("summary"),
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const qualificationCriteria = pgTable("qualification_criteria", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  organizationId: uuid("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  question: text("question").notNull(),
-  field: varchar("field", { length: 50 }),
-  weight: integer("weight").default(1).notNull(),
-  enabled: boolean("enabled").default(true).notNull(),
-  order: integer("order").default(0).notNull(),
-});
-
-export const nurturingSequences = pgTable("nurturing_sequences", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  organizationId: uuid("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
-  name: varchar("name", { length: 255 }).notNull(),
-  triggerStage: leadStage("trigger_stage").default("QUALIFYING"),
-  enabled: boolean("enabled").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const nurturingSteps = pgTable("nurturing_steps", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  sequenceId: uuid("sequence_id")
-    .references(() => nurturingSequences.id)
-    .notNull(),
-  order: integer("order").notNull(),
-  delayHours: integer("delay_hours").notNull(),
-  channel: leadChannel("channel").default("email").notNull(),
-  subject: varchar("subject", { length: 255 }),
-  content: text("content").notNull(),
-});
-
-export const users = pgTable("autolead_users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  organizationId: uuid("organization_id")
-    .references(() => organizations.id)
-    .notNull(),
   email: varchar("email", { length: 255 }).unique().notNull(),
   name: varchar("name", { length: 255 }).notNull(),
-  role: varchar("role", { length: 50 }).default("agent").notNull(),
+  role: varchar("role", { length: 50 }).default("admin").notNull(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   active: boolean("active").default(true).notNull(),
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
-
-// ─── Google OAuth ─────────────────────────────────────────
-
-export const googleConnections = pgTable("google_connections", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .notNull(),
-  email: varchar("email", { length: 255 }).notNull(),
-  scope: text("scope").notNull(),
-  accessToken: text("access_token").notNull(),
-  refreshToken: text("refresh_token"),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-// ─── Relations ───────────────────────────────────────────
-
-export const leadRelations = {
-  organization: {
-    tableName: "organizations",
-    fields: [leads.organizationId],
-    references: [organizations.id],
-  },
-  messages: {
-    tableName: "lead_messages",
-    fields: [leads.id],
-    references: [leadMessages.leadId],
-  },
-  interactions: {
-    tableName: "lead_interactions",
-    fields: [leads.id],
-    references: [leadInteractions.leadId],
-  },
-};

@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { db } from "@/db";
-import { organizations, users, qualificationCriteria } from "@/db/schema";
+import { users } from "@/db/schema";
 import { hashPassword, createSessionToken } from "@/lib/auth";
-import { slugify } from "@/lib/utils";
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password, company } = await request.json();
+    const { name, email, password } = await request.json();
 
-    if (!name || !email || !password || !company) {
+    if (!name || !email || !password) {
       return NextResponse.json(
         { error: "All fields are required" },
         { status: 400 }
@@ -23,24 +22,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const slug = slugify(company);
-
-    const [org] = await db
-      .insert(organizations)
-      .values({
-        name: company,
-        slug,
-        emailFrom: `contact@${slug}.com`,
-        salesEmail: `sales@${slug}.com`,
-      } as any)
-      .returning();
-
     const passwordHash = await hashPassword(password);
 
     const [user] = await db
       .insert(users)
       .values({
-        organizationId: org.id,
         email,
         name,
         role: "admin",
@@ -48,26 +34,8 @@ export async function POST(request: Request) {
       } as any)
       .returning();
 
-    const defaultCriteria = [
-      { question: "Do you have budget available to invest?", field: "budget", weight: 30 },
-      { question: "Are you the person responsible for the decision?", field: "authority", weight: 25 },
-      { question: "What is the main need you need to solve?", field: "need", weight: 25 },
-      { question: "What is the timeline for implementation?", field: "timeline", weight: 20 },
-    ];
-
-    for (let i = 0; i < defaultCriteria.length; i++) {
-      await db.insert(qualificationCriteria).values({
-        organizationId: org.id,
-        question: defaultCriteria[i].question,
-        field: defaultCriteria[i].field,
-        weight: defaultCriteria[i].weight,
-        order: i,
-      } as any);
-    }
-
     const token = await createSessionToken({
       userId: user.id,
-      organizationId: org.id,
       email: user.email,
       role: user.role,
     });
