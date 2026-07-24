@@ -41,7 +41,7 @@ export default function HomePage() {
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-24 text-center z-10 animate-fade-in">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-sm font-medium mb-8 animate-slide-up">
           <Zap className="w-4 h-4 fill-current" />
-          Powered by LangGraph & n8n
+          Powered by LangGraph AI
         </div>
         
         <h1 className="font-display text-5xl md:text-7xl font-bold max-w-4xl leading-tight tracking-tight animate-slide-up" style={{ animationDelay: "100ms" }}>
@@ -85,7 +85,7 @@ export default function HomePage() {
             {
               icon: Workflow,
               title: "Event-Driven Engine",
-              desc: "Deep integration with n8n to connect your legacy CRMs to cutting-edge AI pipelines.",
+              desc: "Connect your CRMs and legacy systems to cutting-edge AI pipelines via webhooks.",
               color: "text-indigo-400",
               bg: "bg-indigo-400/10"
             },
