@@ -9,7 +9,7 @@ const publicRoutes = [
   "/admin/reset-password",
 ];
 
-export async function proxy(request: NextRequest) {
+export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (!pathname.startsWith("/admin")) return NextResponse.next();
