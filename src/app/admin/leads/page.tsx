@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, FileSpreadsheet } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 interface Lead {
@@ -41,6 +41,7 @@ export default function LeadsPage() {
   const [stageFilter, setStageFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -59,13 +60,40 @@ export default function LeadsPage() {
       .finally(() => setLoading(false));
   }, [search, stageFilter, page]);
 
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const res = await fetch("/api/leads/export", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, "_blank");
+      } else {
+        alert(data.error || "Export failed");
+      }
+    } catch {
+      alert("Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold">Leads</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Manage and monitor your leads
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold">Leads</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage and monitor your leads
+          </p>
+        </div>
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-brand-600 text-white text-sm hover:bg-brand-700 disabled:opacity-50 transition-colors"
+        >
+          <FileSpreadsheet size={16} />
+          {exporting ? "Exporting..." : "Export to Sheets"}
+        </button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">

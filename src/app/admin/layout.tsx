@@ -13,9 +13,15 @@ import {
   LogOut,
   Menu,
   X,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
+
+interface GoogleStatus {
+  connected: boolean;
+  email: string | null;
+}
 
 const publicPaths = ["/admin/login", "/admin/signup"];
 
@@ -33,6 +39,55 @@ const navItems = [
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
+
+function GoogleConnectSection() {
+  const [status, setStatus] = useState<GoogleStatus>({ connected: false, email: null });
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/google/status")
+      .then((r) => r.json())
+      .then(setStatus)
+      .catch(console.error);
+  }, []);
+
+  if (status.connected) {
+    return (
+      <div className="text-xs">
+        <div className="flex items-center gap-1.5 text-green-600 mb-0.5">
+          <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+          Google connected
+        </div>
+        <p className="text-muted-foreground truncate">{status.email}</p>
+        <button
+          onClick={async () => {
+            setDisconnecting(true);
+            try {
+              await fetch("/api/auth/google/disconnect", { method: "POST" });
+              setStatus({ connected: false, email: null });
+            } finally {
+              setDisconnecting(false);
+            }
+          }}
+          disabled={disconnecting}
+          className="text-red-500 hover:text-red-700 mt-1"
+        >
+          {disconnecting ? "Disconnecting..." : "Disconnect"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href="/api/auth/google"
+      className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
+    >
+      <ExternalLink size={14} />
+      Connect Google Sheets
+    </a>
+  );
+}
 
 export default function AdminLayout({
   children,
@@ -109,6 +164,10 @@ export default function AdminLayout({
             </Link>
           ))}
         </nav>
+
+        <div className="border-t border-border px-3 py-2">
+          <GoogleConnectSection />
+        </div>
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
           <div className="flex items-center justify-between">
