@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifySessionToken } from "@/lib/auth";
+import { jwtVerify } from "jose";
 
 const publicRoutes = [
   "/admin/login",
@@ -8,6 +8,17 @@ const publicRoutes = [
   "/admin/forgot-password",
   "/admin/reset-password",
 ];
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET ?? "fallback-dev-secret-do-not-use-in-production"
+);
+
+interface SessionPayload {
+  userId: string;
+  organizationId: string;
+  email: string;
+  role: string;
+}
 
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -23,7 +34,8 @@ export default async function middleware(request: NextRequest) {
   }
 
   try {
-    const session = await verifySessionToken(sessionCookie);
+    const { payload } = await jwtVerify(sessionCookie, JWT_SECRET);
+    const session = payload as unknown as SessionPayload;
     const headers = new Headers(request.headers);
 
     headers.set("x-user-id", session.userId);
