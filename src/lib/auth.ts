@@ -13,6 +13,19 @@ const JWT_SECRET = new TextEncoder().encode(
 
 const SALT_ROUNDS = 12;
 
+export async function getSessionFromRequest(request: Request): Promise<AdminSession | null> {
+  const cookie = (request.headers.get("cookie") || "")
+    .split("; ")
+    .find((c) => c.startsWith(`${COOKIE_NAME}=`))
+    ?.split("=")[1];
+  if (!cookie) return null;
+  try {
+    return await verifySessionToken(cookie);
+  } catch {
+    return null;
+  }
+}
+
 export async function hashPassword(password: string): Promise<string> {
   return hashSync(password, genSaltSync(SALT_ROUNDS));
 }

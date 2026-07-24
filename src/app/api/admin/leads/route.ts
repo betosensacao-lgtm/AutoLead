@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { eq, desc, and, like, sql } from "drizzle-orm";
+import { getSessionFromRequest } from "@/lib/auth";
 
 export async function GET(request: Request) {
-  const organizationId = request.headers.get("x-organization-id");
-  if (!organizationId) {
+  const session = await getSessionFromRequest(request);
+  if (!session?.organizationId) {
     return NextResponse.json({ error: "Not authorized" }, { status: 401 });
   }
+  const organizationId = session.organizationId;
 
   const { searchParams } = new URL(request.url);
   const stage = searchParams.get("stage");
@@ -50,10 +52,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const organizationId = request.headers.get("x-organization-id");
-  if (!organizationId) {
+  const session = await getSessionFromRequest(request);
+  if (!session?.organizationId) {
     return NextResponse.json({ error: "Not authorized" }, { status: 401 });
   }
+  const organizationId = session.organizationId;
 
   try {
     const body = await request.json();

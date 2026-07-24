@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads, leadMessages } from "@/db/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
+import { getSessionFromRequest } from "@/lib/auth";
 
 export async function GET(request: Request) {
-  const organizationId = request.headers.get("x-organization-id");
-  if (!organizationId) {
+  const session = await getSessionFromRequest(request);
+  if (!session?.organizationId) {
     return NextResponse.json({ error: "Not authorized" }, { status: 401 });
   }
+  const organizationId = session.organizationId;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
