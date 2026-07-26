@@ -3,7 +3,7 @@ import OpenAI from "openai";
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY;
 
 function getAI(): OpenAI {
-  const key = OPENROUTER_KEY ?? process.env.GEMINI_API_KEY ?? process.env.AUTOLEAD_GROQ_API_KEY ?? process.env.GROQ_API_KEY;
+  const key = OPENROUTER_KEY ?? process.env.GEMINI_API_KEY ?? process.env.GROQ_API_KEY;
   if (!key) throw new Error("No API key configured");
 
   return new OpenAI({

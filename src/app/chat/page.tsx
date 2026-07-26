@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { Workflow, Send, Bot, Sparkles, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 interface Message {
-  role: "lead" | "agent";
+  role: "user" | "agent";
   content: string;
 }
 
@@ -12,7 +14,7 @@ export default function ChatPage() {
     {
       role: "agent",
       content:
-        "Hi! I'm AutoLead's virtual assistant. How can I help you today? Tell me a bit about what you're looking for.",
+        "Olá! Sou o assistente de inteligência de automação do FlowAI. Como posso te ajudar a criar, integrar ou otimizar seus workflows no n8n hoje?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -30,7 +32,7 @@ export default function ChatPage() {
 
     const userMessage = input.trim();
     setInput("");
-    setMessages((prev) => [...prev, { role: "lead", content: userMessage }]);
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setLoading(true);
 
     try {
@@ -40,21 +42,20 @@ export default function ChatPage() {
         body: JSON.stringify({
           message: userMessage,
           sessionId,
-          organizationId: "aff9495d-eb36-4d2e-baa9-d926ad34aa80",
         }),
       });
 
       const data = await res.json();
       setMessages((prev) => [
         ...prev,
-        { role: "agent", content: data.reply },
+        { role: "agent", content: data.reply || "Workflow gerado e registrado no sistema." },
       ]);
     } catch {
       setMessages((prev) => [
         ...prev,
         {
           role: "agent",
-          content: "Sorry, an error occurred. Please try again.",
+          content: "Desculpe, ocorreu um erro ao consultar o agente FlowAI. Tente novamente.",
         },
       ]);
     } finally {
@@ -63,28 +64,42 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-dvh flex flex-col max-w-2xl mx-auto border-x border-border">
-      <header className="border-b border-border p-4 flex items-center gap-3">
-        <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-sm">A</span>
-        </div>
-        <div>
-          <h1 className="font-display font-semibold">AutoLead</h1>
-          <p className="text-xs text-muted-foreground">AI Sales Assistant</p>
+    <div className="h-screen flex flex-col max-w-4xl mx-auto bg-slate-950 text-slate-100 font-sans border-x border-slate-800 shadow-2xl">
+      {/* Header */}
+      <header className="border-b border-slate-800 p-4 bg-slate-900/60 backdrop-blur-md flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/admin/dashboard" className="text-slate-400 hover:text-white p-1">
+            <ArrowLeft size={18} />
+          </Link>
+          <div className="w-9 h-9 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            <Workflow className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="font-bold text-base text-slate-100 flex items-center gap-2">
+              FlowAI Workflow Agent <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+            </h1>
+            <p className="text-xs text-slate-400">Automação de fluxos n8n via LangGraph IA</p>
+          </div>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950">
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={`flex ${msg.role === "agent" ? "justify-start" : "justify-end"}`}
+            className={`flex gap-3 text-sm ${msg.role === "agent" ? "justify-start" : "justify-end"}`}
           >
+            {msg.role === "agent" && (
+              <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0">
+                <Bot className="w-4 h-4" />
+              </div>
+            )}
             <div
-              className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm leading-relaxed ${
+              className={`max-w-xl rounded-2xl p-4 text-sm leading-relaxed ${
                 msg.role === "agent"
-                  ? "bg-muted text-foreground rounded-bl-sm"
-                  : "bg-brand-600 text-white rounded-br-sm"
+                  ? "bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none"
+                  : "bg-gradient-to-r from-cyan-600 to-purple-600 text-white rounded-br-none shadow-lg shadow-cyan-600/20"
               }`}
             >
               {msg.content}
@@ -92,33 +107,32 @@ export default function ChatPage() {
           </div>
         ))}
         {loading && (
-          <div className="flex justify-start">
-            <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2 text-sm">
-              <span className="animate-pulse">Typing...</span>
-            </div>
+          <div className="flex gap-3 items-center text-xs text-slate-500">
+            <div className="w-6 h-6 rounded-full border border-cyan-500/30 border-t-cyan-400 animate-spin" />
+            Gerando automação n8n...
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={handleSend} className="border-t border-border p-4">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
-            className="flex-1 px-4 py-2 rounded-lg border border-border bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
-            disabled={loading}
-          />
-          <button
-            type="submit"
-            disabled={loading || !input.trim()}
-            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
-          >
-            Send
-          </button>
-        </div>
+      {/* Input */}
+      <form onSubmit={handleSend} className="border-t border-slate-800 p-4 bg-slate-900/50 flex gap-3">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ex: Crie um workflow que recebe leads por Webhook e envia no Slack e HubSpot..."
+          className="flex-1 px-4 py-3 rounded-xl border border-slate-800 bg-slate-900 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+          disabled={loading}
+        />
+        <button
+          type="submit"
+          disabled={loading || !input.trim()}
+          className="bg-gradient-to-r from-cyan-500 to-purple-600 text-white px-5 py-3 rounded-xl font-medium text-sm flex items-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all shadow-lg shadow-cyan-500/20"
+        >
+          <Send className="w-4 h-4" />
+          Enviar
+        </button>
       </form>
     </div>
   );

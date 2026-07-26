@@ -15,7 +15,7 @@ export async function sendEmail({
 }) {
   try {
     const data = await resend.emails.send({
-      from: from ?? "AutoLead <onboarding@resend.dev>",
+      from: from ?? "FlowAI <onboarding@resend.dev>",
       to,
       subject,
       html,

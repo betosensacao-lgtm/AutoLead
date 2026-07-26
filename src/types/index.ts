@@ -44,7 +44,7 @@ export interface BantEvaluation {
 
 export interface AdminSession {
   userId: string;
-  organizationId: string;
+  organizationId?: string;
   email: string;
   role: string;
 }
