@@ -1,4 +1,5 @@
 import { DynamicStructuredTool } from "@langchain/core/tools";
+import { ToolMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { n8nClient } from "@/lib/n8n/client";
 import { db } from "@/db";
@@ -7,7 +8,7 @@ import { eq } from "drizzle-orm";
 
 export const createN8nWorkflowTool = new DynamicStructuredTool({
   name: "create_n8n_workflow",
-  description: "Cria um novo workflow de automação n8n via IA com os nós e conexões especificados.",
+  description: "Cria um novo workflow de automação n8n via IA com os nós e conexões especificados e salva o JSON no banco.",
   schema: z.object({
     name: z.string().describe("Nome do workflow"),
     description: z.string().describe("Descrição do que o workflow faz"),
@@ -22,6 +23,24 @@ export const createN8nWorkflowTool = new DynamicStructuredTool({
     try {
       const n8nWf = await n8nClient.createWorkflow(name, nodes, {});
 
+      // Construct standard n8n workflow JSON export structure
+      const definitionJson = {
+        name,
+        nodes: nodes.map((n, index) => ({
+          parameters: {},
+          id: n.id || `node-${index + 1}`,
+          name: n.name,
+          type: n.type.includes(".") ? n.type : `n8n-nodes-base.${n.type}`,
+          typeVersion: 1,
+          position: [250 * (index + 1), 300],
+        })),
+        connections: {},
+        active: true,
+        settings: { executionOrder: "v1" },
+        versionId: crypto.randomUUID(),
+        meta: { templateId: `flowai-${Date.now()}` },
+      };
+
       const [dbWf] = await db.insert(workflows).values({
         name,
         description,
@@ -30,6 +49,7 @@ export const createN8nWorkflowTool = new DynamicStructuredTool({
         nodesCount: nodes.length,
         status: "ACTIVE",
         tags: ["AI-Generated", triggerType],
+        definitionJson,
       } as any).returning();
 
       return JSON.stringify({
@@ -38,6 +58,7 @@ export const createN8nWorkflowTool = new DynamicStructuredTool({
         n8nWorkflowId: n8nWf.id,
         name: dbWf.name,
         nodesCount: nodes.length,
+        definitionJson,
       });
     } catch (error) {
       return JSON.stringify({ success: false, error: String(error) });
@@ -120,3 +141,35 @@ export const workflowTools = [
   executeN8nWorkflowTool,
   listN8nWorkflowsTool,
 ];
+
+export async function executeToolCalls(
+  toolCalls: Array<{ name: string; args: Record<string, unknown>; id?: string }>
+): Promise<ToolMessage[]> {
+  const results: ToolMessage[] = [];
+
+  for (const tc of toolCalls) {
+    const tool = allTools.find((t) => t.name === tc.name);
+    if (tool) {
+      try {
+        const result = await tool.func(tc.args as Parameters<typeof tool.func>[0]);
+        results.push(
+          new ToolMessage({
+            content: typeof result === "string" ? result : JSON.stringify(result),
+            tool_call_id: tc.id ?? crypto.randomUUID(),
+            name: tc.name,
+          })
+        );
+      } catch (error) {
+        results.push(
+          new ToolMessage({
+            content: JSON.stringify({ error: String(error) }),
+            tool_call_id: tc.id ?? crypto.randomUUID(),
+            name: tc.name,
+          })
+        );
+      }
+    }
+  }
+
+  return results;
+}
