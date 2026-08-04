@@ -8,16 +8,16 @@ import { eq } from "drizzle-orm";
 
 export const createN8nWorkflowTool = new DynamicStructuredTool({
   name: "create_n8n_workflow",
-  description: "Cria um novo workflow de automação n8n via IA com os nós e conexões especificados e salva o JSON no banco.",
+  description: "Creates a new n8n automation workflow via AI with the specified nodes and connections, and saves the JSON to the database.",
   schema: z.object({
-    name: z.string().describe("Nome do workflow"),
-    description: z.string().describe("Descrição do que o workflow faz"),
+    name: z.string().describe("Workflow name"),
+    description: z.string().describe("Description of what the workflow does"),
     triggerType: z.enum(["WEBHOOK", "SCHEDULE", "EVENT", "MANUAL", "AI_AGENT"]).default("WEBHOOK"),
     nodes: z.array(z.object({
       id: z.string(),
       name: z.string(),
       type: z.string(),
-    })).describe("Lista de nós n8n"),
+    })).describe("List of n8n nodes"),
   }),
   func: async ({ name, description, triggerType, nodes }) => {
     try {
@@ -68,10 +68,10 @@ export const createN8nWorkflowTool = new DynamicStructuredTool({
 
 export const executeN8nWorkflowTool = new DynamicStructuredTool({
   name: "execute_n8n_workflow",
-  description: "Dispara a execução de um workflow n8n ativo.",
+  description: "Triggers execution of an active n8n workflow.",
   schema: z.object({
-    workflowId: z.string().describe("ID do workflow no sistema"),
-    inputData: z.record(z.unknown()).optional().describe("Dados de entrada para o disparo"),
+    workflowId: z.string().describe("Workflow ID in the system"),
+    inputData: z.record(z.unknown()).optional().describe("Input data for the trigger"),
   }),
   func: async ({ workflowId, inputData }) => {
     try {
@@ -108,7 +108,7 @@ export const executeN8nWorkflowTool = new DynamicStructuredTool({
 
 export const listN8nWorkflowsTool = new DynamicStructuredTool({
   name: "list_n8n_workflows",
-  description: "Lista os workflows ativos e seu status de execução.",
+  description: "Lists active workflows and their execution status.",
   schema: z.object({}),
   func: async () => {
     try {

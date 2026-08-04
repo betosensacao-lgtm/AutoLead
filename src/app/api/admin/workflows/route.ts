@@ -30,13 +30,13 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { name, description, triggerType, nodes } = body;
 
-    const n8nWf = await n8nClient.createWorkflow(name || "Novo Workflow", nodes || [], {});
+    const n8nWf = await n8nClient.createWorkflow(name || "New Workflow", nodes || [], {});
 
     const [created] = await db
       .insert(workflows)
       .values({
-        name: name || "Novo Workflow FlowAI",
-        description: description || "Criado via FlowAI Studio",
+        name: name || "New FlowAI Workflow",
+        description: description || "Created via FlowAI Studio",
         n8nWorkflowId: n8nWf.id,
         triggerType: triggerType || "WEBHOOK",
         status: "ACTIVE",

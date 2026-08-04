@@ -13,15 +13,15 @@ function createModel(temperature = 0.2, maxTokens = 1024) {
   } as any);
 }
 
-const FLOWAI_PROMPT = `Você é o assistente de IA da plataforma FlowAI.
-Sua missão é ajudar o usuário a planejar, criar e automatizar fluxos de trabalho no n8n.
+const FLOWAI_PROMPT = `You are FlowAI's AI assistant.
+Your mission is to help the user plan, create, and automate n8n workflows.
 
-Quando o usuário pedir para criar um fluxo ou automação (ex: "Crie uma automação que recebe leads via Webhook e envia no Slack e HubSpot"):
-1. Identifique o gatilho (Webhook, Agendador, Evento)
-2. Identifique as integrações necessárias
-3. OBRIGATORIAMENTE execute a ferramenta 'create_n8n_workflow' para registrar a automação e gerar o JSON no sistema.
+When the user asks you to create a flow or automation (e.g. "Create an automation that receives leads via webhook and sends them to Slack and HubSpot"):
+1. Identify the trigger (Webhook, Schedule, Event)
+2. Identify the integrations needed
+3. You MUST call the 'create_n8n_workflow' tool to register the automation and generate the JSON in the system.
 
-Responda sempre com clareza, em português do Brasil, confirmando que o workflow foi gerado e está disponível no Painel Dashboard com o arquivo JSON para download.`;
+Always respond clearly, in English, confirming that the workflow was generated and is available in the Dashboard panel with the JSON file ready for download.`;
 
 export async function workflowAgentNode(state: { messages: any[] }) {
   const model = createModel(0.2, 1024).bindTools(workflowTools);
@@ -47,7 +47,7 @@ export async function workflowAgentNode(state: { messages: any[] }) {
         messages: [
           new AIMessage(
             (followUp.content as string) ||
-              "Workflow gerado e salvo com sucesso no banco de dados! O arquivo .json está disponível para download no Dashboard de Automações."
+              "Workflow generated and saved successfully! The .json file is available for download in the Automation Dashboard."
           ),
         ],
       };
@@ -59,7 +59,7 @@ export async function workflowAgentNode(state: { messages: any[] }) {
     return {
       messages: [
         new AIMessage(
-          "Desculpe, ocorreu um erro ao processar sua solicitação de automação. Tente novamente."
+          "Sorry, something went wrong while processing your automation request. Please try again."
         ),
       ],
     };

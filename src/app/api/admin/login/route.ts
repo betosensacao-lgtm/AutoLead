@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     const { email, password } = await request.json();
 
     if (!email || !password) {
-      return NextResponse.json({ error: "Email e senha são obrigatórios" }, { status: 400 });
+      return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -39,12 +39,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user || !user.passwordHash) {
-      return NextResponse.json({ error: "Email ou senha incorretos" }, { status: 401 });
+      return NextResponse.json({ error: "Incorrect email or password" }, { status: 401 });
     }
 
     const isValid = await verifyPassword(password, user.passwordHash).catch(() => false);
     if (!isValid) {
-      return NextResponse.json({ error: "Email ou senha incorretos" }, { status: 401 });
+      return NextResponse.json({ error: "Incorrect email or password" }, { status: 401 });
     }
 
     const token = await createSessionToken({
