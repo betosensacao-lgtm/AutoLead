@@ -10,6 +10,8 @@ panels), blurred glow orbs behind the hero, pill-shaped gradient CTAs, and the
 Inter/Sora font pairing — the exact combination tools like v0, Lovable, and
 similar AI builders default to. The user wants the whole app to feel
 hand-designed and "organic" instead, without changing any functionality.
+Separately, the app is currently in Portuguese; it needs to be in English for
+portfolio presentation, bundled into this same pass.
 
 This spec was developed through iterative visual brainstorming (mockups shown
 via a local browser companion) rather than abstract description, because the
@@ -121,14 +123,44 @@ dropdowns), not for cards or buttons sitting on the page.
    removed since there is no dark theme); `tailwind.config.ts` font families
    and any `brand` color references are updated to the new tokens.
 
+## Language: English throughout
+
+The app must be in English (not Portuguese) for portfolio presentation. This
+is bundled into the same implementation pass as the visual redesign, since
+most of the same files are being touched anyway — translating and restyling
+each page in one edit avoids a second pass over the same code.
+
+**Files with Portuguese copy to translate:**
+- `src/app/page.tsx` (landing) — nav, hero, feature cards, footer
+- `src/app/admin/login/page.tsx` — labels, placeholders, button, error toasts
+- `src/app/admin/layout.tsx` — nav item labels ("Dashboard FlowAI", "Gerador IA (LangGraph)"), engine banner copy, user role label
+- `src/app/admin/dashboard/page.tsx` — headings, labels
+- `src/app/chat/page.tsx` — placeholder/labels/empty states
+- `src/app/api/admin/login/route.ts` — user-facing error strings ("Email e senha são obrigatórios", "Email ou senha incorretos")
+- `src/app/api/admin/workflows/route.ts` — default workflow name/description ("Novo Workflow FlowAI", "Criado via FlowAI Studio")
+- `src/lib/langgraph/nodes.ts` — `FLOWAI_PROMPT` (the agent's system prompt) and its canned fallback replies
+- `src/lib/langgraph/tools.ts` — tool `description` strings and default values (e.g. `"Novo Workflow"`) sent to the LLM
+- `src/app/layout.tsx` — `<html lang="pt">` → `lang="en"`, and the Portuguese `metadata.description`
+
+**`src/app/admin/signup/page.tsx` needs more than translation:** it's already
+in English, but it's a stale pre-pivot leftover — different visual system
+entirely (`bg-brand-600`, `rounded-lg`, no paper/sage tokens) and copy that
+still says *"Start qualifying leads with AI"* (the old lead-qualification
+product, not FlowAI). It gets the same redesign treatment as every other page
+plus a copy fix to describe FlowAI's actual workflow-automation purpose.
+
+Not in scope for translation: code identifiers, comments, commit messages,
+and `AGENTS.md`/`.env.example` are already English.
+
 ## Out of scope
 
 - No functional changes — this is a styling-layer pass only. Every route,
   form submission, auth flow, and API call already verified in the earlier
   security-hardening work continues to work exactly as before.
 - No dark mode / theme switcher — explicitly decided against.
-- No changes to copy/content beyond what's needed to fit the new type scale
-  (e.g. no rewriting feature descriptions).
+- Beyond translating to English (and the `signup` page's product-description
+  fix noted above), no content rewrites — feature descriptions, workflow
+  copy, etc. keep their current meaning, just in English.
 - Exact icon glyph for the new logo mark is an implementation detail chosen
   during implementation, not a design decision requiring further sign-off.
 
@@ -136,7 +168,9 @@ dropdowns), not for cards or buttons sitting on the page.
 
 After implementation: start the dev server, visually check each redesigned
 page (landing, login, signup, dashboard, chat) in the browser at both desktop
-and mobile widths, confirm forms still submit correctly (login, signup, chat
-message send) and no console errors were introduced, and confirm `tsc
---noEmit` and the existing Vitest suite still pass (styling changes shouldn't
-touch any tested logic, but this catches accidental breakage).
+and mobile widths, confirm every page reads in English with no leftover
+Portuguese strings (re-run the accented-character grep from this spec's
+research as a sanity check), confirm forms still submit correctly (login,
+signup, chat message send) and no console errors were introduced, and confirm
+`tsc --noEmit` and the existing Vitest suite still pass (styling changes
+shouldn't touch any tested logic, but this catches accidental breakage).
