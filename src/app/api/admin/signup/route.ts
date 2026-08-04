@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { hashPassword, createSessionToken } from "@/lib/auth";
@@ -19,6 +20,17 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Password must be at least 6 characters" },
         { status: 400 }
+      );
+    }
+
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users);
+
+    if (Number(count) > 0) {
+      return NextResponse.json(
+        { error: "Signup is disabled — an admin account already exists" },
+        { status: 403 }
       );
     }
 

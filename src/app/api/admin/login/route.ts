@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sql } from "drizzle-orm";
 import { getUserByEmail, verifyPassword, createSessionToken, updateLastLogin, hashPassword } from "@/lib/auth";
 import { db } from "@/db";
 import { users } from "@/db/schema";
@@ -15,9 +16,13 @@ export async function POST(request: NextRequest) {
     const cleanEmail = email.trim().toLowerCase();
     let user = await getUserByEmail(cleanEmail).catch(() => null);
 
-    // Auto-seed admin user on first login if table is empty or admin not created
+    // Auto-seed the first admin only on a genuinely empty users table.
     if (!user) {
-      try {
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(users);
+
+      if (Number(count) === 0) {
         const passwordHash = await hashPassword(password);
         const [newUser] = await db
           .insert(users)
@@ -30,33 +35,28 @@ export async function POST(request: NextRequest) {
           } as any)
           .returning();
         user = newUser;
-      } catch (insertErr) {
-        console.warn("[AUTO SEED LOGIN WARN]", insertErr);
       }
     }
 
-    if (user && user.passwordHash) {
-      const isValid = await verifyPassword(password, user.passwordHash).catch(() => true);
-      if (!isValid && user.email !== "admin@flowai.dev") {
-        return NextResponse.json({ error: "Email ou senha incorretos" }, { status: 401 });
-      }
+    if (!user || !user.passwordHash) {
+      return NextResponse.json({ error: "Email ou senha incorretos" }, { status: 401 });
     }
 
-    const userId = user?.id || crypto.randomUUID();
-    const role = user?.role || "admin";
+    const isValid = await verifyPassword(password, user.passwordHash).catch(() => false);
+    if (!isValid) {
+      return NextResponse.json({ error: "Email ou senha incorretos" }, { status: 401 });
+    }
 
     const token = await createSessionToken({
-      userId,
-      email: cleanEmail,
-      role,
+      userId: user.id,
+      email: user.email,
+      role: user.role,
     });
 
-    if (user?.id) {
-      await updateLastLogin(user.id).catch(() => null);
-    }
+    await updateLastLogin(user.id).catch(() => null);
 
     const response = NextResponse.json({
-      user: { id: userId, name: user?.name || cleanEmail, email: cleanEmail, role },
+      user: { id: user.id, name: user.name || cleanEmail, email: user.email, role: user.role },
     });
 
     response.cookies.set("admin_session", token, {
@@ -79,25 +79,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("[LOGIN ERROR]", error);
-    // Fallback: create emergency admin session so user can log in seamlessly
-    const token = await createSessionToken({
-      userId: "admin-fallback-id",
-      email: "admin@flowai.dev",
-      role: "admin",
-    });
-
-    const response = NextResponse.json({
-      user: { id: "admin-fallback-id", name: "Admin FlowAI", email: "admin@flowai.dev", role: "admin" },
-    });
-
-    response.cookies.set("admin_session", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 86400,
-    });
-
-    return response;
+    return NextResponse.json({ error: "Login failed" }, { status: 500 });
   }
 }

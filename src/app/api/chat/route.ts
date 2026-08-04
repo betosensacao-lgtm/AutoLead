@@ -4,18 +4,21 @@ import { NextResponse } from "next/server";
 import { HumanMessage } from "@langchain/core/messages";
 import { runFlowGraph } from "@/lib/langgraph";
 import { sanitizeInput, detectInjection } from "@/lib/security/guardrails";
+import { chatRequestSchema } from "@/lib/security/schemas";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { message, sessionId } = body;
+    const rawBody = await request.json();
+    const parsed = chatRequestSchema.safeParse(rawBody);
 
-    if (!message) {
+    if (!parsed.success) {
       return NextResponse.json(
         { error: "message parameter is required" },
         { status: 400 }
       );
     }
+
+    const { message, sessionId } = parsed.data;
 
     const sanitized = sanitizeInput(message);
     if (detectInjection(sanitized)) {

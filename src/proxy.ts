@@ -9,6 +9,12 @@ const publicRoutes = [
   "/admin/reset-password",
 ];
 
+const publicApiRoutes = [
+  "/api/admin/login",
+  "/api/admin/signup",
+  "/api/admin/logout",
+];
+
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET ?? "fallback-dev-secret-do-not-use-in-production"
 );
@@ -22,14 +28,20 @@ interface SessionPayload {
 
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isApiRoute = pathname.startsWith("/api/admin");
 
-  if (!pathname.startsWith("/admin")) return NextResponse.next();
-  if (publicRoutes.some((r) => pathname.startsWith(r)))
+  if (!pathname.startsWith("/admin") && !isApiRoute) return NextResponse.next();
+  if (!isApiRoute && publicRoutes.some((r) => pathname.startsWith(r)))
+    return NextResponse.next();
+  if (isApiRoute && publicApiRoutes.some((r) => pathname.startsWith(r)))
     return NextResponse.next();
 
   const sessionCookie = request.cookies.get("admin_session")?.value;
 
   if (!sessionCookie) {
+    if (isApiRoute) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.redirect(new URL("/admin/login", request.url));
   }
 
@@ -45,10 +57,13 @@ export default async function middleware(request: NextRequest) {
 
     return NextResponse.next({ headers });
   } catch {
+    if (isApiRoute) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.redirect(new URL("/admin/login", request.url));
   }
 }
 
 export const config = {
-  matcher: "/admin/:path*",
+  matcher: ["/admin/:path*", "/api/admin/:path*"],
 };

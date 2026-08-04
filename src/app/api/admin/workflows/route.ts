@@ -3,8 +3,14 @@ import { db } from "@/db";
 import { workflows } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { n8nClient } from "@/lib/n8n/client";
+import { getSessionFromRequest } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const session = await getSessionFromRequest(request);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const list = await db.select().from(workflows).orderBy(desc(workflows.createdAt));
     return NextResponse.json(list);
@@ -15,6 +21,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const session = await getSessionFromRequest(request);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { name, description, triggerType, nodes } = body;
