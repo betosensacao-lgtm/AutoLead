@@ -9,22 +9,25 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        display: ["Sora", "system-ui", "sans-serif"],
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "serif"],
       },
       colors: {
-        brand: {
-          50: "#eff6ff",
-          100: "#dbeafe",
-          200: "#bfdbfe",
-          300: "#93c5fd",
-          400: "#60a5fa",
-          500: "#3b82f6",
-          600: "#2563eb",
-          700: "#1d4ed8",
-          800: "#1e40af",
-          900: "#1e3a8a",
+        paper: {
+          DEFAULT: "#f3efe3",
+          raised: "#f9f6ec",
+          deep: "#e7e2d2",
         },
+        ink: {
+          DEFAULT: "#26301c",
+          muted: "#55603f",
+        },
+        sage: {
+          DEFAULT: "#6b7f4f",
+          dark: "#566a3d",
+        },
+        border: "rgba(38,48,28,0.14)",
+        error: "#a34a3a",
       },
       animation: {
         "fade-in": "fadeIn 0.3s ease-out",
